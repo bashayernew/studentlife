@@ -1,0 +1,7 @@
+{
+  "name": "studentlife",
+  "private": true,
+  "scripts": {
+    "build": "cd student_life_task_manager && npm install && npm run build"
+  }
+}

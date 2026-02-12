@@ -1,0 +1,8 @@
+{
+  "buildCommand": "cd student_life_task_manager && npm run build",
+  "outputDirectory": "student_life_task_manager/build",
+  "installCommand": "cd student_life_task_manager && npm install",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
