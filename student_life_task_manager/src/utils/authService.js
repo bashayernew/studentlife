@@ -1,228 +1,90 @@
-import { supabase } from '../lib/supabase';
+import { db, makeId, saveDb, STORAGE_KEY } from '../lib/localDb';
 
 /**
- * Enhanced Authentication Service with Better Error Handling
- * Integrates with existing Supabase auth and profiles schema
+ * Local in-memory \"auth service\" used by admin pages (e.g. StaffManagement).
+ * This does NOT talk to Supabase or any remote backend.
  */
 
 export const authService = {
-  // Sign in with email and password
-  async signIn(email, password) {
-    try {
-      const { data, error } = await supabase?.auth?.signInWithPassword({
-        email: email?.trim(),
-        password
-      });
-      
-      if (error) {
-        // Supabase handled the request but returned an error
-        return { data: null, error };
-      }
-      
-      return { data, error: null };
-    } catch (error) {
-      // Network/Infrastructure errors
-      if (error?.message?.includes('Failed to fetch') || 
-          error?.message?.includes('AuthRetryableFetchError') ||
-          error?.name === 'TypeError' && error?.message?.includes('fetch')) {
-        return { 
-          data: null, 
-          error: { 
-            message: 'Cannot connect to authentication service. Your Supabase project may be paused or inactive. Please check your Supabase dashboard and resume your project if needed.' 
-          } 
-        };
-      }
-      
-      return { 
-        data: null, 
-        error: { message: 'An unexpected error occurred during sign in' } 
-      };
+  // Create staff member (admin function). role defaults to 'staff' if not provided.
+  // initialPassword: optional; if not provided, default is 'staff123'.
+  async createStaffMember(email, fullName, departmentId = null, role = 'staff', initialPassword = 'staff123') {
+    const trimmedEmail = email?.trim();
+    if (!trimmedEmail || !fullName?.trim()) {
+      return { data: null, error: { message: 'Email and full name are required' } };
     }
+
+    // Check against latest persisted data so recreate after delete always works.
+    const usersList = (() => {
+      try {
+        const raw = typeof window !== 'undefined' ? window.localStorage?.getItem?.(STORAGE_KEY) : null;
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed?.users && Array.isArray(parsed.users)) return parsed.users;
+        }
+      } catch {}
+      return Array.isArray(db.users) ? db.users : [];
+    })();
+    const existing = usersList.find(
+      u => String(u?.email ?? '').toLowerCase().trim() === String(trimmedEmail ?? '').toLowerCase().trim()
+    );
+    if (existing) {
+      return { data: null, error: { message: 'Email already exists' } };
+    }
+
+    const roleToUse = (role && role !== 'other') ? String(role).toLowerCase() : 'staff';
+    const id = makeId();
+    const passwordToUse = (initialPassword && String(initialPassword).trim()) ? String(initialPassword).trim() : 'staff123';
+    const user = {
+      id,
+      email: trimmedEmail,
+      password: passwordToUse,
+      full_name: fullName.trim(),
+      role: roleToUse,
+      department_id: departmentId || null,
+    };
+    const profile = {
+      id,
+      email: trimmedEmail,
+      full_name: fullName.trim(),
+      role: roleToUse,
+      department_id: departmentId || null,
+    };
+
+    db.users.push(user);
+    db.profiles.push(profile);
+    saveDb();
+
+    return { data: profile, error: null };
   },
 
-  // Sign out user
-  async signOut() {
-    try {
-      const { error } = await supabase?.auth?.signOut();
-      
-      if (error) {
-        return { error };
-      }
-      
-      return { error: null };
-    } catch (error) {
-      if (error?.message?.includes('Failed to fetch')) {
-        return { 
-          error: { 
-            message: 'Cannot connect to authentication service. Please check your connection.' 
-          } 
-        };
-      }
-      
-      return { error: { message: 'Failed to sign out' } };
+  // Update staff role. Accepts any non-empty string (admin, staff, manager, or custom).
+  async updateStaffRole(userId, newRole) {
+    const roleToUse = newRole && String(newRole).trim() ? String(newRole).trim().toLowerCase() : null;
+    if (!roleToUse) {
+      return { error: { message: 'Role is required' } };
     }
+    const user = db.users.find(u => u.id === userId);
+    const profile = db.profiles.find(p => p.id === userId);
+    if (!user || !profile) {
+      return { error: { message: 'User not found' } };
+    }
+    user.role = roleToUse;
+    profile.role = roleToUse;
+    saveDb();
+    return { error: null };
   },
 
-  // Get current user session
-  async getSession() {
-    try {
-      const { data, error } = await supabase?.auth?.getSession();
-      
-      if (error) {
-        return { data: null, error };
-      }
-      
-      return { data, error: null };
-    } catch (error) {
-      return { 
-        data: null, 
-        error: { message: 'Failed to get session' } 
-      };
+  // Delete staff member: remove from users and profiles, and remove their task assignments so the email can be reused.
+  async deleteStaffMember(userId) {
+    db.users = db.users.filter(u => u.id !== userId || u.role === 'admin');
+    db.profiles = db.profiles.filter(p => p.id !== userId || p.role === 'admin');
+    if (Array.isArray(db.taskAssignees)) {
+      db.taskAssignees = db.taskAssignees.filter(a => a.user_id !== userId);
     }
+    saveDb();
+    return { error: null };
   },
-
-  // Get current user
-  async getUser() {
-    try {
-      const { data, error } = await supabase?.auth?.getUser();
-      
-      if (error) {
-        return { data: null, error };
-      }
-      
-      return { data, error: null };
-    } catch (error) {
-      return { 
-        data: null, 
-        error: { message: 'Failed to get user' } 
-      };
-    }
-  },
-
-  // Get user profile from profiles table
-  async getUserProfile(userId) {
-    if (!userId) {
-      return { data: null, error: { message: 'User ID required' } };
-    }
-
-    try {
-      const { data, error } = await supabase
-        ?.from('profiles')
-        ?.select('*')
-        ?.eq('id', userId)
-        ?.single();
-      
-      if (error) {
-        return { data: null, error };
-      }
-      
-      return { data, error: null };
-    } catch (error) {
-      if (error?.message?.includes('Failed to fetch')) {
-        return { 
-          data: null, 
-          error: { 
-            message: 'Cannot connect to database. Please check your connection.' 
-          } 
-        };
-      }
-      
-      return { 
-        data: null, 
-        error: { message: 'Failed to load user profile' } 
-      };
-    }
-  },
-
-  // Update user profile
-  async updateProfile(userId, updates) {
-    if (!userId) {
-      return { data: null, error: { message: 'User ID required' } };
-    }
-
-    try {
-      const { data, error } = await supabase
-        ?.from('profiles')
-        ?.update(updates)
-        ?.eq('id', userId)
-        ?.select()
-        ?.single();
-      
-      if (error) {
-        return { data: null, error };
-      }
-      
-      return { data, error: null };
-    } catch (error) {
-      return { 
-        data: null, 
-        error: { message: 'Failed to update profile' } 
-      };
-    }
-  },
-
-  // Create staff member (admin function)
-  async createStaffMember(email, fullName, departmentId = null) {
-    try {
-      const { data, error } = await supabase?.rpc('create_staff_member', {
-        user_email: email?.trim(),
-        user_full_name: fullName?.trim(),
-        user_department_id: departmentId
-      });
-      
-      if (error) {
-        return { data: null, error };
-      }
-      
-      return { data, error: null };
-    } catch (error) {
-      return { 
-        data: null, 
-        error: { message: 'Failed to create staff member' } 
-      };
-    }
-  },
-
-  // Check if current user is admin
-  async isAdmin() {
-    try {
-      const { data, error } = await supabase?.rpc('is_admin');
-      
-      if (error) {
-        return { data: false, error };
-      }
-      
-      return { data: data || false, error: null };
-    } catch (error) {
-      return { 
-        data: false, 
-        error: { message: 'Failed to check admin status' } 
-      };
-    }
-  },
-
-  // Check if current user is manager
-  async isManager() {
-    try {
-      const { data, error } = await supabase?.rpc('is_manager');
-      
-      if (error) {
-        return { data: false, error };
-      }
-      
-      return { data: data || false, error: null };
-    } catch (error) {
-      return { 
-        data: false, 
-        error: { message: 'Failed to check manager status' } 
-      };
-    }
-  },
-
-  // Listen to auth state changes
-  onAuthStateChange(callback) {
-    return supabase?.auth?.onAuthStateChange(callback);
-  }
 };
 
 export default authService;

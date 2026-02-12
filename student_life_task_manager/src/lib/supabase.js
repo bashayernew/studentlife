@@ -1,15 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
+    // Supabase client stub.
+// The app has been refactored to use a local in-memory backend instead of Supabase.
+// This file only exists so old imports do not break.
 
-const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY;
+export const supabase = null;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables. Please check your .env file for VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-  }
-});

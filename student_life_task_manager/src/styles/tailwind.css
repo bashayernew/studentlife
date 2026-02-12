@@ -6,39 +6,39 @@
 
 @layer base {
   :root {
-    /* Core Colors */
-    --color-primary: #0b1220; /* Deep foundation blue */
-    --color-primary-foreground: #ffffff; /* white */
-    --color-secondary: #0f1a2b; /* Elevated surface blue */
-    --color-secondary-foreground: #ffffff; /* white */
-    --color-accent: #5aa9ff; /* Energetic interaction blue */
-    --color-accent-foreground: #ffffff; /* white */
-    
-    /* Background & Surface */
-    --color-background: #fafbfc; /* Soft neutral gray-50 */
-    --color-foreground: #1a202c; /* High-contrast dark gray-800 */
-    --color-card: #ffffff; /* Clean white surface */
-    --color-card-foreground: #1a202c; /* High-contrast dark gray-800 */
-    --color-popover: #ffffff; /* Clean white surface */
-    --color-popover-foreground: #1a202c; /* High-contrast dark gray-800 */
-    
-    /* Muted & Borders */
-    --color-muted: #f7fafc; /* Light gray-100 */
-    --color-muted-foreground: #718096; /* Balanced secondary gray-500 */
-    --color-border: #e2e8f0; /* Light border gray-200 */
-    --color-input: #ffffff; /* Clean white surface */
-    --color-ring: #5aa9ff; /* Energetic interaction blue */
-    
-    /* Status Colors */
-    --color-success: #22c55e; /* Vibrant completion green-500 */
-    --color-success-foreground: #ffffff; /* white */
-    --color-warning: #f59e0b; /* Attention amber-500 */
-    --color-warning-foreground: #ffffff; /* white */
-    --color-error: #ef4444; /* Clear problem red-500 */
-    --color-error-foreground: #ffffff; /* white */
-    --color-destructive: #ef4444; /* Clear problem red-500 */
-    --color-destructive-foreground: #ffffff; /* white */
-    
+    /* ktech light theme: white dominant, blues as accents (right logo style) */
+    --color-primary: #0d1b2a; /* Deep navy – logo dark blue for text/headers */
+    --color-primary-foreground: #ffffff;
+    --color-secondary: #f1f5f9; /* Light blue-gray surface */
+    --color-secondary-foreground: #0d1b2a;
+    --color-accent: #4a6fa5; /* ktech medium blue – buttons, links */
+    --color-accent-foreground: #ffffff;
+
+    /* Background & Surface – white dominant */
+    --color-background: #ffffff; /* White – dominant */
+    --color-foreground: #0d1b2a; /* Dark blue text */
+    --color-card: #ffffff; /* White cards */
+    --color-card-foreground: #0d1b2a;
+    --color-popover: #ffffff;
+    --color-popover-foreground: #0d1b2a;
+
+    /* Muted & Borders – soft blues on white */
+    --color-muted: #f8fafc;
+    --color-muted-foreground: #2d5a87; /* Dark blue for secondary text */
+    --color-border: #e2e8f0; /* Light border */
+    --color-input: #ffffff;
+    --color-ring: #4a6fa5;
+
+    /* Status – blues that work on white */
+    --color-success: #4a6fa5;
+    --color-success-foreground: #ffffff;
+    --color-warning: #6b8cce;
+    --color-warning-foreground: #ffffff;
+    --color-error: #c75c5c;
+    --color-error-foreground: #ffffff;
+    --color-destructive: #c75c5c;
+    --color-destructive-foreground: #ffffff;
+
     /* Radius */
     --radius: 8px;
   }
@@ -63,11 +63,11 @@
 
 @layer components {
   .shadow-elevation {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 4px 12px rgba(11, 18, 32, 0.15);
+    box-shadow: 0 1px 3px rgba(13, 27, 42, 0.06), 0 4px 12px rgba(13, 27, 42, 0.08);
   }
 
   .shadow-elevation-hover {
-    box-shadow: 0 8px 24px rgba(11, 18, 32, 0.2);
+    box-shadow: 0 8px 24px rgba(13, 27, 42, 0.12);
   }
 
   .transition-micro {

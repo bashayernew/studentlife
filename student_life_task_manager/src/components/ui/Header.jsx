@@ -29,11 +29,12 @@ const Header = () => {
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <Icon name="CheckSquare" size={20} color="white" />
-            </div>
-            <h1 className="text-xl font-bold text-foreground">Task Manager</h1>
+          <div className="flex items-center">
+            <img
+              src="/assets/images/ktech-logo.png"
+              alt="ktech"
+              className="h-8 object-contain"
+            />
           </div>
 
           {/* Navigation */}
@@ -58,6 +59,14 @@ const Header = () => {
                 <Icon name="User" size={16} />
                 <span>My Tasks</span>
               </Button>
+              <Button
+                variant="ghost"
+                onClick={() => handleNavigation('/account')}
+                className="flex items-center space-x-2"
+              >
+                <Icon name="User" size={16} />
+                <span>Account</span>
+              </Button>
             </nav>
           )}
 
@@ -75,8 +84,12 @@ const Header = () => {
               </div>
 
               {/* User Avatar */}
-              <div className="w-8 h-8 bg-accent rounded-full flex items-center justify-center">
-                <Icon name="User" size={16} color="white" />
+              <div className="w-8 h-8 rounded-full overflow-hidden bg-accent flex items-center justify-center shrink-0">
+                {userProfile?.avatar_url ? (
+                  <img src={userProfile.avatar_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <Icon name="User" size={16} color="white" />
+                )}
               </div>
 
               {/* Sign Out Button */}

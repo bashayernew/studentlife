@@ -1,5 +1,6 @@
--- Update admin user to use eyad123@eyad.com credentials
--- This ensures the admin can login with the specified email/password
+-- Update admin user to use a single admin account
+-- Email: admin123123@gmail.com
+-- Password: admin123123
 
 DO $$
 DECLARE
@@ -15,8 +16,8 @@ BEGIN
     IF admin_user_id IS NOT NULL THEN
         UPDATE auth.users 
         SET 
-            email = 'eyad123@eyad.com',
-            encrypted_password = crypt('Ey@d9090', gen_salt('bf', 10)),
+            email = 'admin123123@gmail.com',
+            encrypted_password = crypt('admin123123', gen_salt('bf', 10)),
             raw_user_meta_data = jsonb_build_object(
                 'full_name', 'Admin User',
                 'role', 'admin'
@@ -27,12 +28,12 @@ BEGIN
         -- Update profiles table to match
         UPDATE public.profiles
         SET 
-            email = 'eyad123@eyad.com',
+            email = 'admin123123@gmail.com',
             full_name = 'Admin User',
             updated_at = now()
         WHERE id = admin_user_id;
 
-        RAISE NOTICE 'Admin credentials updated successfully to eyad123@eyad.com';
+        RAISE NOTICE 'Admin credentials updated successfully to admin123123@gmail.com';
     ELSE
         -- Create admin user if none exists
         admin_user_id := gen_random_uuid();
@@ -47,13 +48,13 @@ BEGIN
             phone_change_token, phone_change_sent_at
         ) VALUES (
             admin_user_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-            'eyad123@eyad.com', crypt('Ey@d9090', gen_salt('bf', 10)), now(), now(), now(),
+            'admin123123@gmail.com', crypt('admin123123', gen_salt('bf', 10)), now(), now(), now(),
             '{"full_name": "Admin User", "role": "admin"}'::jsonb, 
             '{"provider": "email", "providers": ["email"]}'::jsonb,
             false, false, '', null, '', null, '', '', null, '', 0, '', null, null, '', '', null
         );
 
-        RAISE NOTICE 'New admin user created with eyad123@eyad.com';
+        RAISE NOTICE 'New admin user created with admin123123@gmail.com';
     END IF;
 
 EXCEPTION

@@ -84,14 +84,12 @@ EXCEPTION
 END;
 $$;
 
--- Mock data for testing - Admin and Staff users
+-- Mock data for testing - Single Admin user
 DO $$
 DECLARE
     admin_uuid UUID := gen_random_uuid();
-    staff1_uuid UUID := gen_random_uuid();
-    staff2_uuid UUID := gen_random_uuid();
 BEGIN
-    -- Create auth users with required fields
+    -- Create a single admin user with the requested credentials
     INSERT INTO auth.users (
         id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
         created_at, updated_at, raw_user_meta_data, raw_app_meta_data,
@@ -100,23 +98,16 @@ BEGIN
         email_change_sent_at, email_change_token_current, email_change_confirm_status,
         reauthentication_token, reauthentication_sent_at, phone, phone_change,
         phone_change_token, phone_change_sent_at
-    ) VALUES
-        (admin_uuid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-         'admin@taskmanager.com', crypt('admin123', gen_salt('bf', 10)), now(), now(), now(),
-         '{"full_name": "Admin User", "role": "admin"}'::jsonb, '{"provider": "email", "providers": ["email"]}'::jsonb,
-         false, false, '', null, '', null, '', '', null, '', 0, '', null, null, '', '', null),
-        (staff1_uuid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-         'john@taskmanager.com', crypt('staff123', gen_salt('bf', 10)), now(), now(), now(),
-         '{"full_name": "John Smith", "role": "staff"}'::jsonb, '{"provider": "email", "providers": ["email"]}'::jsonb,
-         false, false, '', null, '', null, '', '', null, '', 0, '', null, null, '', '', null),
-        (staff2_uuid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-         'sarah@taskmanager.com', crypt('staff123', gen_salt('bf', 10)), now(), now(), now(),
-         '{"full_name": "Sarah Johnson", "role": "staff"}'::jsonb, '{"provider": "email", "providers": ["email"]}'::jsonb,
-         false, false, '', null, '', null, '', '', null, '', 0, '', null, null, '', '', null);
+    ) VALUES (
+        admin_uuid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+        'admin123123@gmail.com', crypt('admin123123', gen_salt('bf', 10)), now(), now(), now(),
+        '{"full_name": "Admin User", "role": "admin"}'::jsonb, '{"provider": "email", "providers": ["email"]}'::jsonb,
+        false, false, '', null, '', null, '', '', null, '', 0, '', null, null, '', '', null
+    );
 
 EXCEPTION
     WHEN unique_violation THEN
-        RAISE NOTICE 'Mock users already exist, skipping creation';
+        RAISE NOTICE 'Admin user already exists, skipping creation';
     WHEN OTHERS THEN
-        RAISE NOTICE 'Error creating mock users: %', SQLERRM;
+        RAISE NOTICE 'Error creating admin user: %', SQLERRM;
 END $$;

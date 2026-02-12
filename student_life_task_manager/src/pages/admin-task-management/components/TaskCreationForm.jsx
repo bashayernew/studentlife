@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { taskService } from '../../../utils/taskService';
+import { db, makeId, saveDb } from '../../../lib/localDb';
 import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
 import Select from '../../../components/ui/Select';
 import Icon from '../../../components/AppIcon';
 
-const TaskCreationForm = ({ isOpen, onClose, onTaskCreated }) => {
+const TaskCreationForm = ({ isOpen, onClose, onTaskCreated, onTaskCreate }) => {
   const { user } = useAuth();
+  const isModal = isOpen === true;
+  const isInline = isOpen === undefined; // when used on admin page without isOpen, show inline
+
   const [formData, setFormData] = useState({
     title: '',
     details: '',
@@ -21,13 +25,15 @@ const TaskCreationForm = ({ isOpen, onClose, onTaskCreated }) => {
   const [selectedAssignees, setSelectedAssignees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [customPriority, setCustomPriority] = useState('');
+  const [customDepartment, setCustomDepartment] = useState('');
 
-  // Load departments and staff on mount - REPLACE MOCK DATA
+  // Load departments and staff on mount (modal when opened, inline on first mount)
   useEffect(() => {
-    if (isOpen) {
+    if (isModal || isInline) {
       loadFormData();
     }
-  }, [isOpen]);
+  }, [isModal, isInline]);
 
   const loadFormData = async () => {
     try {
@@ -41,8 +47,8 @@ const TaskCreationForm = ({ isOpen, onClose, onTaskCreated }) => {
         return;
       }
 
-      // Load staff members from Supabase  
-      const { data: staff, error: staffError } = await taskService?.getStaffMembers();
+      // Load all members (Staff, Manager, etc.) so any created user can be assigned
+      const { data: staff, error: staffError } = await taskService?.getAllMembers();
       if (staffError) {
         setError('Failed to load staff members: ' + staffError?.message);
         return;
@@ -91,9 +97,22 @@ const TaskCreationForm = ({ isOpen, onClose, onTaskCreated }) => {
     setError('');
 
     try {
-      // Create task with actual Supabase integration
+      let departmentId = formData?.department_id || '';
+      if (departmentId === 'other' && customDepartment?.trim()) {
+        const newId = makeId();
+        db.departments.push({ id: newId, name: customDepartment.trim() });
+        saveDb();
+        departmentId = newId;
+      }
+
+      const priority = formData?.priority === 'other'
+        ? (customPriority?.trim() || 'normal')
+        : (formData?.priority || 'normal');
+
       const taskData = {
         ...formData,
+        priority,
+        department_id: departmentId || null,
         created_by: user?.id,
         due_at: new Date(formData?.due_at)?.toISOString()
       };
@@ -127,7 +146,9 @@ const TaskCreationForm = ({ isOpen, onClose, onTaskCreated }) => {
         department_id: ''
       });
       setSelectedAssignees([]);
-      
+      setCustomPriority('');
+      setCustomDepartment('');
+      if (onTaskCreate) onTaskCreate(newTask);
       onTaskCreated?.();
       onClose?.();
     } catch (error) {
@@ -137,24 +158,24 @@ const TaskCreationForm = ({ isOpen, onClose, onTaskCreated }) => {
     }
   };
 
-  if (!isOpen) return null;
+  if (isOpen === false) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-foreground">Create New Task</h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <Icon name="X" size={20} />
-            </Button>
-          </div>
+  const formContent = (
+    <div className={isInline ? 'p-6' : ''}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-semibold text-foreground">Create New Task</h2>
+        {isModal && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Icon name="X" size={20} />
+          </Button>
+        )}
+      </div>
 
           {/* Loading State */}
           {loading && (
@@ -218,15 +239,28 @@ const TaskCreationForm = ({ isOpen, onClose, onTaskCreated }) => {
                   <Select
                     name="priority"
                     value={formData?.priority || 'normal'}
-                    onChange={handleInputChange}
+                    onChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}
+                    options={[
+                      { value: 'low', label: 'Low' },
+                      { value: 'normal', label: 'Normal' },
+                      { value: 'high', label: 'High' },
+                      { value: 'urgent', label: 'Urgent' },
+                      { value: 'other', label: 'Other (type below)' }
+                    ]}
+                    placeholder="Select priority"
                     disabled={loading}
                     className="w-full"
-                  >
-                    <option value="low">Low</option>
-                    <option value="normal">Normal</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
-                  </Select>
+                  />
+                  {formData?.priority === 'other' && (
+                    <Input
+                      name="customPriority"
+                      value={customPriority}
+                      onChange={(e) => setCustomPriority(e?.target?.value || '')}
+                      placeholder="Type custom priority (e.g. Medium, Critical)"
+                      disabled={loading}
+                      className="w-full mt-2"
+                    />
+                  )}
                 </div>
 
                 <div>
@@ -235,18 +269,27 @@ const TaskCreationForm = ({ isOpen, onClose, onTaskCreated }) => {
                   </label>
                   <Select
                     name="department_id"
-                    value={formData?.department_id || ''}
-                    onChange={handleInputChange}
+                    value={formData?.department_id ?? ''}
+                    onChange={(value) => setFormData(prev => ({ ...prev, department_id: value }))}
+                    options={[
+                      { value: '', label: 'Select Department' },
+                      ...(departments?.map((dept) => ({ value: dept?.id, label: dept?.name || '' })) || []),
+                      { value: 'other', label: 'Other (type below)' }
+                    ]}
+                    placeholder="Select Department"
                     disabled={loading}
                     className="w-full"
-                  >
-                    <option value="">Select Department</option>
-                    {departments?.map((dept) => (
-                      <option key={dept?.id} value={dept?.id}>
-                        {dept?.name}
-                      </option>
-                    ))}
-                  </Select>
+                  />
+                  {formData?.department_id === 'other' && (
+                    <Input
+                      name="customDepartment"
+                      value={customDepartment}
+                      onChange={(e) => setCustomDepartment(e?.target?.value || '')}
+                      placeholder="Type new department name"
+                      disabled={loading}
+                      className="w-full mt-2"
+                    />
+                  )}
                 </div>
               </div>
 
@@ -288,14 +331,16 @@ const TaskCreationForm = ({ isOpen, onClose, onTaskCreated }) => {
 
               {/* Actions */}
               <div className="flex justify-end space-x-3 pt-4 border-t border-border">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={onClose}
-                  disabled={loading}
-                >
-                  Cancel
-                </Button>
+                {isModal && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={onClose}
+                    disabled={loading}
+                  >
+                    Cancel
+                  </Button>
+                )}
                 <Button
                   type="submit"
                   disabled={loading || !formData?.title?.trim() || !formData?.due_at}
@@ -315,7 +360,21 @@ const TaskCreationForm = ({ isOpen, onClose, onTaskCreated }) => {
               </div>
             </form>
           )}
-        </div>
+    </div>
+  );
+
+  if (isInline) {
+    return (
+      <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
+        {formContent}
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-primary/50 flex items-center justify-center z-50">
+      <div className="bg-background rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        {formContent}
       </div>
     </div>
   );

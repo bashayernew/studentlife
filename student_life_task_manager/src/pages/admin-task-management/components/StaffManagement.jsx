@@ -21,6 +21,7 @@ const StaffManagement = () => {
     fullName: '',
     role: 'staff'
   });
+  const [customRole, setCustomRole] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
@@ -32,7 +33,7 @@ const StaffManagement = () => {
     setError('');
 
     try {
-      const { data, error } = await authService?.getStaffMembers();
+      const { data, error } = await taskService?.getAllMembers();
       
       if (error) {
         setError(error?.message || 'Failed to load staff members');
@@ -88,24 +89,28 @@ const StaffManagement = () => {
       return;
     }
 
+    const roleToUse = formData?.role === 'other' ? (customRole?.trim() || 'staff') : (formData?.role || 'staff');
+
     try {
       const { data, error } = await authService?.createStaffMember(
         formData?.email,
-        formData?.password,
         formData?.fullName,
-        formData?.role
+        null,
+        roleToUse,
+        formData?.password
       );
 
       if (error) {
         setError(error?.message || 'Failed to create staff member');
       } else {
         // Reset form and reload staff list
-        setFormData({
-          email: '',
-          password: '',
-          fullName: '',
-          role: 'staff'
-        });
+      setFormData({
+        email: '',
+        password: '',
+        fullName: '',
+        role: 'staff'
+      });
+      setCustomRole('');
         setShowCreateForm(false);
         loadStaffMembers();
       }
@@ -301,13 +306,27 @@ const StaffManagement = () => {
                     <Select
                       name="role"
                       value={formData?.role || 'staff'}
-                      onChange={handleInputChange}
+                      onChange={(value) => setFormData(prev => ({ ...prev, role: value }))}
+                      options={[
+                        { value: 'staff', label: 'Staff' },
+                        { value: 'admin', label: 'Admin' },
+                        { value: 'manager', label: 'Manager' },
+                        { value: 'other', label: 'Other (type below)' }
+                      ]}
+                      placeholder="Select role"
                       disabled={isCreating}
-                    >
-                      <option value="staff">Staff</option>
-                      <option value="manager">Manager</option>
-                      <option value="admin">Admin</option>
-                    </Select>
+                      className="w-full"
+                    />
+                    {formData?.role === 'other' && (
+                      <Input
+                        name="customRole"
+                        value={customRole}
+                        onChange={(e) => setCustomRole(e?.target?.value || '')}
+                        placeholder="Type custom role (e.g. Supervisor, Coordinator)"
+                        disabled={isCreating}
+                        className="w-full mt-2"
+                      />
+                    )}
                   </div>
                 </div>
 
@@ -381,14 +400,16 @@ const StaffManagement = () => {
                     </Button>
 
                     <Select
-                      value={staff?.role}
-                      onChange={(e) => handleUpdateRole(staff?.id, e?.target?.value)}
-                      className="text-sm"
-                    >
-                      <option value="staff">Staff</option>
-                      <option value="manager">Manager</option>
-                      <option value="admin">Admin</option>
-                    </Select>
+                      value={staff?.role || 'staff'}
+                      onChange={(value) => handleUpdateRole(staff?.id, value)}
+                      options={[
+                        { value: 'staff', label: 'Staff' },
+                        { value: 'admin', label: 'Admin' },
+                        { value: 'manager', label: 'Manager' }
+                      ]}
+                      placeholder="Select role"
+                      className="text-sm min-w-[120px]"
+                    />
 
                     <Button
                       variant="outline"

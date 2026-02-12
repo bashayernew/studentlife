@@ -8,6 +8,7 @@ import ScrollToTop from './components/ScrollToTop';
 import Login from './pages/Login';
 import AdminTaskManagement from './pages/admin-task-management';
 import StaffDashboard from './pages/staff-dashboard';
+import Account from './pages/Account';
 import NotFound from './pages/NotFound';
 
 const Routes = () => {
@@ -19,8 +20,12 @@ const Routes = () => {
           <RouterRoutes>
             <Route path="/" element={<Login />} />
             <Route path="/login" element={<Login />} />
+            {/* Admin dashboard (primary URL) */}
+            <Route path="/admin-task-management" element={<AdminTaskManagement />} />
+            {/* Backwards-compatible alias */}
             <Route path="/admin-dashboard" element={<AdminTaskManagement />} />
             <Route path="/staff-dashboard" element={<StaffDashboard />} />
+            <Route path="/account" element={<Account />} />
             <Route path="*" element={<NotFound />} />
           </RouterRoutes>
         </AuthProvider>

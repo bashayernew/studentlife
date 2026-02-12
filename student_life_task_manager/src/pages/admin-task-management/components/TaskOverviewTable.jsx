@@ -12,10 +12,12 @@ const TaskOverviewTable = ({ onTaskUpdate, refreshTrigger }) => {
   const [sortDirection, setSortDirection] = useState('desc');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
+  const [editingTask, setEditingTask] = useState(null);
+  const [departments, setDepartments] = useState([]);
 
-  // Load tasks from Supabase - REPLACE MOCK DATA
   useEffect(() => {
     loadTasks();
+    loadDepartments();
   }, [refreshTrigger]);
 
   const loadTasks = async () => {
@@ -38,12 +40,21 @@ const TaskOverviewTable = ({ onTaskUpdate, refreshTrigger }) => {
     }
   };
 
+  const loadDepartments = async () => {
+    try {
+      const { data } = await taskService?.getDepartments();
+      setDepartments(data || []);
+    } catch {
+      // ignore, department filter will just show "No Department"
+    }
+  };
+
   // ... keep existing utility functions ...
   const getPriorityColor = (priority) => {
     const colors = {
       low: 'text-blue-600 bg-blue-100',
-      normal: 'text-gray-600 bg-gray-100',
-      high: 'text-orange-600 bg-orange-100',
+      normal: 'text-[#0d1b2a] bg-blue-50',
+      high: 'text-blue-700 bg-blue-200',
       urgent: 'text-red-600 bg-red-100'
     };
     return colors?.[priority] || colors?.normal;
@@ -51,15 +62,58 @@ const TaskOverviewTable = ({ onTaskUpdate, refreshTrigger }) => {
 
   const getStatusColor = (status) => {
     const colors = {
-      pending: 'text-yellow-600 bg-yellow-100',
-      in_progress: 'text-blue-600 bg-blue-100',
-      completed: 'text-green-600 bg-green-100'
+      pending: 'text-warning bg-warning/15',
+      in_progress: 'text-accent bg-accent/15',
+      completed: 'text-success bg-success/15'
     };
     return colors?.[status] || colors?.pending;
   };
 
   const isTaskOverdue = (dueAt) => {
     return new Date(dueAt) < new Date();
+  };
+
+  const startEditTask = (task) => {
+    setEditingTask({
+      id: task?.id,
+      title: task?.title || '',
+      details: task?.details || '',
+      due_at: task?.due_at ? task.due_at.slice(0, 16) : '',
+      priority: task?.priority || 'normal',
+      department_id: task?.department?.id || '',
+    });
+  };
+
+  const handleEditChange = (field, value) => {
+    setEditingTask((prev) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  const cancelEdit = () => setEditingTask(null);
+
+  const saveEditTask = async () => {
+    if (!editingTask) return;
+    try {
+      const updates = {
+        title: editingTask.title,
+        details: editingTask.details,
+        priority: editingTask.priority,
+        due_at: editingTask.due_at
+          ? new Date(editingTask.due_at).toISOString()
+          : undefined,
+        department_id: editingTask.department_id || null,
+      };
+
+      const { error } = await taskService?.updateTask(editingTask.id, updates);
+      if (error) {
+        alert('Failed to update task: ' + error?.message);
+        return;
+      }
+      setEditingTask(null);
+      loadTasks();
+      onTaskUpdate?.(editingTask.id, updates);
+    } catch (err) {
+      alert('Failed to update task. Please try again.');
+    }
   };
 
   const handleDeleteTask = async (taskId) => {
@@ -235,14 +289,36 @@ const TaskOverviewTable = ({ onTaskUpdate, refreshTrigger }) => {
               filteredTasks?.map((task) => (
                 <tr key={task?.id} className="border-t border-border hover:bg-muted/20">
                   <td className="p-4">
-                    <div>
-                      <h3 className="font-medium text-foreground">{task?.title}</h3>
-                      {task?.details && (
-                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                          {task?.details}
-                        </p>
-                      )}
-                    </div>
+                    {editingTask?.id === task?.id ? (
+                      <div className="space-y-2">
+                        <input
+                          className="w-full px-2 py-1 border border-border rounded text-sm"
+                          value={editingTask.title}
+                          onChange={(e) =>
+                            handleEditChange('title', e?.target?.value || '')
+                          }
+                          placeholder="Task title"
+                        />
+                        <textarea
+                          className="w-full px-2 py-1 border border-border rounded text-xs text-muted-foreground"
+                          rows={2}
+                          value={editingTask.details}
+                          onChange={(e) =>
+                            handleEditChange('details', e?.target?.value || '')
+                          }
+                          placeholder="Description"
+                        />
+                      </div>
+                    ) : (
+                      <div>
+                        <h3 className="font-medium text-foreground">{task?.title}</h3>
+                        {task?.details && (
+                          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                            {task?.details}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </td>
                   
                   <td className="p-4">
@@ -270,32 +346,86 @@ const TaskOverviewTable = ({ onTaskUpdate, refreshTrigger }) => {
                   </td>
                   
                   <td className="p-4">
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${getPriorityColor(task?.priority)}`}>
-                      {task?.priority}
-                    </span>
-                  </td>
-                  
-                  <td className="p-4">
-                    <div className="text-sm text-foreground">
-                      {new Date(task?.due_at)?.toLocaleDateString()}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(task?.due_at)?.toLocaleTimeString()}
-                    </div>
-                    {isTaskOverdue(task?.due_at) && (
-                      <div className="text-xs text-error font-medium mt-1">Overdue</div>
+                    {editingTask?.id === task?.id ? (
+                      <select
+                        className="px-2 py-1 border border-border rounded text-xs"
+                        value={editingTask.priority}
+                        onChange={(e) =>
+                          handleEditChange('priority', e?.target?.value || 'normal')
+                        }
+                      >
+                        <option value="low">Low</option>
+                        <option value="normal">Normal</option>
+                        <option value="high">High</option>
+                        <option value="urgent">Urgent</option>
+                      </select>
+                    ) : (
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full font-medium ${getPriorityColor(
+                          task?.priority
+                        )}`}
+                      >
+                        {task?.priority}
+                      </span>
                     )}
                   </td>
                   
                   <td className="p-4">
-                    <span className="text-sm text-foreground">
-                      {task?.department?.name || 'No Department'}
-                    </span>
+                    {editingTask?.id === task?.id ? (
+                      <input
+                        type="datetime-local"
+                        className="w-full px-2 py-1 border border-border rounded text-xs"
+                        value={editingTask.due_at}
+                        onChange={(e) =>
+                          handleEditChange('due_at', e?.target?.value || '')
+                        }
+                      />
+                    ) : (
+                      <>
+                        <div className="text-sm text-foreground">
+                          {new Date(task?.due_at)?.toLocaleDateString()}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(task?.due_at)?.toLocaleTimeString()}
+                        </div>
+                        {isTaskOverdue(task?.due_at) && (
+                          <div className="text-xs text-error font-medium mt-1">
+                            Overdue
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </td>
+                  
+                  <td className="p-4">
+                    {editingTask?.id === task?.id ? (
+                      <select
+                        className="px-2 py-1 border border-border rounded text-xs"
+                        value={editingTask.department_id || ''}
+                        onChange={(e) =>
+                          handleEditChange(
+                            'department_id',
+                            e?.target?.value || ''
+                          )
+                        }
+                      >
+                        <option value="">No Department</option>
+                        {departments?.map((dept) => (
+                          <option key={dept?.id} value={dept?.id}>
+                            {dept?.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className="text-sm text-foreground">
+                        {task?.department?.name || 'No Department'}
+                      </span>
+                    )}
                   </td>
                   
                   <td className="p-4">
                     {task?.task_assignees?.length === 0 ? (
-                      <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-600">
+                      <span className="text-xs px-2 py-1 rounded-full bg-warning/15 text-warning">
                         Pending
                       </span>
                     ) : (
@@ -311,14 +441,42 @@ const TaskOverviewTable = ({ onTaskUpdate, refreshTrigger }) => {
                   
                   <td className="p-4">
                     <div className="flex items-center space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteTask(task?.id)}
-                        className="text-error hover:text-error hover:bg-error/10"
-                      >
-                        <Icon name="Trash2" size={16} />
-                      </Button>
+                      {editingTask?.id === task?.id ? (
+                        <>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={saveEditTask}
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={cancelEdit}
+                          >
+                            Cancel
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => startEditTask(task)}
+                          >
+                            <Icon name="Pencil" size={14} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteTask(task?.id)}
+                            className="text-error hover:text-error hover:bg-error/10"
+                          >
+                            <Icon name="Trash2" size={16} />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

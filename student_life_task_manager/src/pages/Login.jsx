@@ -6,7 +6,7 @@ import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 
 const Login = () => {
-  const { signIn, loading, user, userProfile, profileLoading } = useAuth();
+  const { signIn, signInDemo, loading, user, userProfile, profileLoading } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
@@ -15,17 +15,13 @@ const Login = () => {
   const [authError, setAuthError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Redirect based on user role after authentication and profile loading
+  // Redirect: admin → admin dashboard; everyone else (staff, manager, etc.) → staff dashboard
   useEffect(() => {
     if (user && !loading && !profileLoading && userProfile) {
-      // Redirect based on user role
       if (userProfile?.role === 'admin') {
-        navigate('/admin-dashboard');
-      } else if (userProfile?.role === 'staff') {
-        navigate('/staff-dashboard');
+        navigate('/admin-task-management');
       } else {
-        // Fallback for unknown roles
-        navigate('/admin-dashboard');
+        navigate('/staff-dashboard');
       }
     }
   }, [user, loading, profileLoading, userProfile, navigate]);
@@ -83,10 +79,11 @@ const Login = () => {
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-            <Icon name="Shield" size={32} color="white" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">Task Manager</h1>
+          <img
+            src="/assets/images/ktech-logo.png"
+            alt="ktech"
+            className="h-14 mx-auto mb-4 object-contain"
+          />
           <p className="text-muted-foreground">Sign in to manage tasks and team</p>
         </div>
 
@@ -142,40 +139,44 @@ const Login = () => {
             )}
           </Button>
 
-          {/* Demo Credentials Section */}
+          {/* Credentials hint */}
           <div className="bg-muted/50 border border-border rounded-lg p-4">
-            <h3 className="text-sm font-medium text-foreground mb-3">Demo Credentials</h3>
+            <h3 className="text-sm font-medium text-foreground mb-3">Sign in</h3>
             <div className="space-y-2 text-xs">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Admin:</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFormData({
-                      email: 'eyad123@eyad.com',
-                      password: 'Ey@d9090'
-                    });
-                  }}
-                  className="text-accent hover:text-accent/80 font-medium"
-                >
-                  eyad123@eyad.com / Ey@d9090
-                </button>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Staff:</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFormData({
-                      email: 'john@taskmanager.com',
-                      password: 'password123'
-                    });
-                  }}
-                  className="text-accent hover:text-accent/80 font-medium"
-                >
-                  john@taskmanager.com / password123
-                </button>
-              </div>
+              <p className="text-muted-foreground">
+                <strong>Admin:</strong> use the admin account. <strong>Staff:</strong> use the email and password your admin gave you (new accounts start with password <code className="bg-muted px-1 rounded">staff123</code> until you change it in Account).
+              </p>
+              <button
+                type="button"
+                onClick={() => setFormData({ email: 'admin123123@gmail.com', password: 'admin123123' })}
+                className="text-accent hover:text-accent/80 font-medium"
+              >
+                Admin: admin123123@gmail.com / admin123123
+              </button>
+            </div>
+          </div>
+
+          {/* Demo mode when Supabase is unreachable (ERR_NAME_NOT_RESOLVED / paused project) */}
+          <div className="mt-4 p-4 rounded-lg border border-amber-500/40 bg-amber-500/5">
+            <h3 className="text-sm font-medium text-foreground mb-2">Can&apos;t reach the server?</h3>
+            <p className="text-xs text-muted-foreground mb-3">
+              If you see &quot;Can&apos;t reach Supabase&quot; above, your project may be paused or offline. Use demo mode to explore the app without a backend.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => signInDemo('admin')}
+                className="text-xs px-3 py-2 rounded-md bg-accent text-accent-foreground hover:opacity-90"
+              >
+                Continue as Admin (demo)
+              </button>
+              <button
+                type="button"
+                onClick={() => signInDemo('staff')}
+                className="text-xs px-3 py-2 rounded-md bg-muted text-foreground hover:opacity-90"
+              >
+                Continue as Staff (demo)
+              </button>
             </div>
           </div>
         </form>

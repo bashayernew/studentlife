@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { taskService } from '../../utils/taskService';
+import { messageService } from '../../utils/messageService';
 import Icon from '../../components/AppIcon';
 import Button from '../../components/ui/Button';
 import TaskStatusIndicator from '../../components/ui/TaskStatusIndicator';
@@ -19,13 +20,43 @@ const StaffDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [messages, setMessages] = useState([]);
+  const [messageText, setMessageText] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [messageType, setMessageType] = useState('general');
+  const [selectedTaskId, setSelectedTaskId] = useState('');
 
   useEffect(() => {
     if (user?.id) {
       loadMyTasks();
       loadTaskStats();
+      loadMessages();
     }
   }, [user?.id]);
+
+  const loadMessages = () => {
+    const adminId = messageService.getAdminId();
+    if (!adminId || !user?.id) return;
+    const list = messageService.getConversation(user.id, adminId);
+    setMessages(list);
+  };
+
+  const handleSendMessage = async (e) => {
+    e?.preventDefault();
+    const adminId = messageService.getAdminId();
+    if (!adminId || !user?.id || !messageText?.trim()) return;
+    setSendingMessage(true);
+    const taskId = messageType === 'task' && selectedTaskId ? selectedTaskId : null;
+    const { error: err } = messageService.sendMessage(user.id, adminId, messageText.trim(), taskId);
+    setSendingMessage(false);
+    if (err) {
+      setError('Failed to send: ' + (err?.message || 'Unknown error'));
+      return;
+    }
+    setMessageText('');
+    setSelectedTaskId('');
+    loadMessages();
+  };
 
   const loadMyTasks = async () => {
     try {
@@ -89,8 +120,8 @@ const StaffDashboard = () => {
   const getPriorityColor = (priority) => {
     const colors = {
       low: 'text-blue-600 bg-blue-100',
-      normal: 'text-gray-600 bg-gray-100', 
-      high: 'text-orange-600 bg-orange-100',
+      normal: 'text-[#0d1b2a] bg-blue-50',
+      high: 'text-blue-700 bg-blue-200',
       urgent: 'text-red-600 bg-red-100'
     };
     return colors?.[priority] || colors?.normal;
@@ -180,8 +211,8 @@ const StaffDashboard = () => {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <div className="bg-card rounded-lg p-4 shadow-sm">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Icon name="Clipboard" size={20} className="text-blue-600" />
+              <div className="w-10 h-10 bg-accent/15 rounded-lg flex items-center justify-center">
+                <Icon name="Clipboard" size={20} className="text-accent" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">{stats?.total}</p>
@@ -192,8 +223,8 @@ const StaffDashboard = () => {
 
           <div className="bg-card rounded-lg p-4 shadow-sm">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <Icon name="Clock" size={20} className="text-yellow-600" />
+              <div className="w-10 h-10 bg-warning/15 rounded-lg flex items-center justify-center">
+                <Icon name="Clock" size={20} className="text-warning" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">{stats?.pending}</p>
@@ -204,8 +235,8 @@ const StaffDashboard = () => {
 
           <div className="bg-card rounded-lg p-4 shadow-sm">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Icon name="Play" size={20} className="text-blue-600" />
+              <div className="w-10 h-10 bg-accent/15 rounded-lg flex items-center justify-center">
+                <Icon name="Play" size={20} className="text-accent" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">{stats?.in_progress}</p>
@@ -216,8 +247,8 @@ const StaffDashboard = () => {
 
           <div className="bg-card rounded-lg p-4 shadow-sm">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <Icon name="CheckCircle" size={20} className="text-green-600" />
+              <div className="w-10 h-10 bg-success/15 rounded-lg flex items-center justify-center">
+                <Icon name="CheckCircle" size={20} className="text-success" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">{stats?.completed}</p>
@@ -228,8 +259,8 @@ const StaffDashboard = () => {
 
           <div className="bg-card rounded-lg p-4 shadow-sm">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                <Icon name="AlertCircle" size={20} className="text-red-600" />
+              <div className="w-10 h-10 bg-error/15 rounded-lg flex items-center justify-center">
+                <Icon name="AlertCircle" size={20} className="text-error" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">{stats?.overdue}</p>
@@ -294,7 +325,7 @@ const StaffDashboard = () => {
                               {task?.priority}
                             </span>
                             {isOverdue && (
-                              <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-600 font-medium">
+                              <span className="text-xs px-2 py-1 rounded-full bg-error/15 text-error font-medium">
                                 Overdue
                               </span>
                             )}
@@ -338,7 +369,7 @@ const StaffDashboard = () => {
                               {actionLabel}
                             </Button>
                           ) : (
-                            <div className="flex items-center space-x-2 text-green-600">
+                            <div className="flex items-center space-x-2 text-success">
                               <Icon name="CheckCircle" size={16} />
                               <span className="text-sm font-medium">Completed</span>
                             </div>
@@ -350,6 +381,104 @@ const StaffDashboard = () => {
                 })}
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Message Admin */}
+        <div className="mt-8 bg-card rounded-lg shadow-sm border border-border">
+          <div className="p-4 border-b border-border">
+            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Icon name="MessageSquare" size={20} className="text-accent" />
+              Message Admin
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">Send a general message or one about a specific task. The admin can reply here.</p>
+          </div>
+          <div className="p-4">
+            <div className="max-h-64 overflow-y-auto space-y-3 mb-4 min-h-[8rem] bg-muted/20 rounded-lg p-3">
+              {messages?.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No messages yet. Send one below.</p>
+              ) : (
+                messages?.map((m) => {
+                  const taskTitle = m.task_id ? tasks?.find(t => t.id === m.task_id)?.title : null;
+                  return (
+                    <div
+                      key={m.id}
+                      className={`flex ${m.from_user_id === user?.id ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                          m.from_user_id === user?.id
+                            ? 'bg-accent text-accent-foreground'
+                            : 'bg-muted border border-border text-foreground'
+                        }`}
+                      >
+                        <p className="font-medium text-xs opacity-90">
+                          {m.from_user_id === user?.id ? 'You' : 'Admin'}
+                        </p>
+                        {taskTitle && (
+                          <p className="text-xs opacity-90 mt-0.5 font-medium">Re: {taskTitle}</p>
+                        )}
+                        <p className="mt-0.5">{m.body}</p>
+                        <p className="text-xs opacity-75 mt-1">
+                          {new Date(m.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            <form onSubmit={handleSendMessage} className="space-y-3">
+              <div className="flex flex-wrap items-center gap-4">
+                <span className="text-sm font-medium text-foreground">Message type:</span>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="messageType"
+                    checked={messageType === 'general'}
+                    onChange={() => setMessageType('general')}
+                    className="text-accent"
+                  />
+                  <span className="text-sm">General message</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="messageType"
+                    checked={messageType === 'task'}
+                    onChange={() => setMessageType('task')}
+                    className="text-accent"
+                  />
+                  <span className="text-sm">About a specific task</span>
+                </label>
+                {messageType === 'task' && (
+                  <select
+                    value={selectedTaskId}
+                    onChange={(e) => setSelectedTaskId(e.target.value)}
+                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                  >
+                    <option value="">Select task...</option>
+                    {tasks?.map((t) => (
+                      <option key={t.id} value={t.id}>{t.title}</option>
+                    ))}
+                    {(!tasks?.length) && <option value="" disabled>No tasks assigned</option>}
+                  </select>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <textarea
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                  placeholder={messageType === 'task' ? "Type your message about this task..." : "Type your message..."}
+                  rows={2}
+                  className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                  disabled={sendingMessage}
+                />
+                <Button type="submit" disabled={sendingMessage || !messageText?.trim() || (messageType === 'task' && !selectedTaskId)}>
+                  {sendingMessage ? 'Sending...' : 'Send'}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       </div>
